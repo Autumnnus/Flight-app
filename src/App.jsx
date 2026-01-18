@@ -1,15 +1,15 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import PageContainer from "./containers/PageContainer";
-import Header from "./components/navbar/Header";
-import Departures from "./pages/Departures";
-import Arrivals from "./pages/Arrivals";
 import { useEffect, useState } from "react";
-import { getFlights } from "./config/config";
 import { useDispatch, useSelector } from "react-redux";
-import { getFlightsArr } from "./redux/reducerSlice";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import Header from "./components/navbar/Header";
+import { getFlights } from "./config/config";
+import PageContainer from "./containers/PageContainer";
+import Arrivals from "./pages/Arrivals";
 import ArrivalsDetail from "./pages/ArrivalsDetail";
+import Departures from "./pages/Departures";
 import DeparturesDetail from "./pages/DeparturesDetail";
+import Home from "./pages/Home";
+import { getFlightsArr } from "./redux/reducerSlice";
 
 function App() {
   const dispatch = useDispatch();
@@ -35,9 +35,9 @@ function App() {
           searchParamValue ? fromDateTimeSpecialDate : fromDateTime,
           null,
           0,
-          "+scheduleTime"
+          "+scheduleTime",
         );
-        dispatch(getFlightsArr(dataFlight.flights));
+        dispatch(getFlightsArr(dataFlight?.flights));
       } catch (error) {
         console.error("Error fetching flights:", error);
       }

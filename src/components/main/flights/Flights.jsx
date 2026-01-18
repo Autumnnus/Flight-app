@@ -1,14 +1,19 @@
 import PropTypes from "prop-types";
+import { useEffect, useState } from "react";
+import {
+  FaArrowRight,
+  FaPlaneArrival,
+  FaPlaneDeparture,
+} from "react-icons/fa6";
+import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
+import { PulseLoader } from "react-spinners";
 import {
   getAircrafttypes,
   getAirlines,
   getDestinations,
   getFlightStatus,
 } from "../../../config/config";
-import React, { useEffect, useState } from "react";
-import { FaArrowRight } from "react-icons/fa6";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import {
   setLoadingAircraft,
   setLoadingAirline,
@@ -18,13 +23,6 @@ import {
 } from "../../../redux/reducerSlice";
 import EarlierFlightsComp from "./EarlierFlightsComp";
 import LaterFlightsComp from "./LaterFlightsComp";
-import { ClipLoader } from "react-spinners";
-
-const override = {
-  display: "block",
-  margin: "0 auto",
-  borderColor: "red",
-};
 
 const Flights = ({ rotate }) => {
   Flights.propTypes = {
@@ -35,18 +33,18 @@ const Flights = ({ rotate }) => {
   const location = useLocation();
   const flights = useSelector((state) => state.reducer.flights);
   const rotateDetail = useSelector((state) => state.reducer.rotateParam);
+
   const [airlineData, setAirlineData] = useState([]);
   const [destinationData, setDestinationData] = useState([]);
-  const [airCraftData, setAirCraftData] = useState("");
-  // const [loadingAirline, setLoadingAirline] = useState(false);
-  // const [loadingDestination, setLoadingDestination] = useState(false);
-  // const [loadingAircraft, setLoadingAircraft] = useState(false);
+  const [airCraftData, setAirCraftData] = useState([]);
 
   const loadingAirline = useSelector((state) => state.reducer.loadingAirline);
   const loadingDestination = useSelector(
-    (state) => state.reducer.loadingDestination
+    (state) => state.reducer.loadingDestination,
   );
   const loadingAircraft = useSelector((state) => state.reducer.loadingAircraft);
+
+  const isLoading = !loadingAircraft || !loadingAirline || !loadingDestination;
 
   useEffect(() => {
     if (rotate === "D") {
@@ -54,189 +52,173 @@ const Flights = ({ rotate }) => {
     } else if (rotate === "A") {
       dispatch(setRotateParam("arrivals"));
     }
+
     const fetchDatas = async () => {
+      if (!flights || flights.length === 0) return;
+
       try {
-        //* Airline DATA
-        const airlinePromises = flights.map(async (flight) => {
-          const dataAirline = await getAirlines(flight.prefixIATA);
-          dispatch(setLoadingAirline(true));
-          return dataAirline;
-        });
-        const resolvedAirlineData = await Promise.all(airlinePromises);
-        setAirlineData(resolvedAirlineData);
-        //* Destination DATA
-        const destinationPromises = flights.map(async (flight) => {
-          const dataDestination = await getDestinations(
-            flight.route.destinations[0]
-          );
-          dispatch(setLoadingDestination(true));
-          return dataDestination;
-        });
-        const resolvedDestinationData = await Promise.all(destinationPromises);
-        setDestinationData(resolvedDestinationData);
-        //* Aircraft DATA
-        const airCraftTypePromises = flights.map(async (flight) => {
-          const dataAirCraftType = await getAircrafttypes(
-            flight.aircraftType?.iataMain,
-            flight.aircraftType?.iataSub
-          );
-          dispatch(setLoadingAircraft(true));
-          return dataAirCraftType;
-        });
-        const resolvedairCraftTypeData = await Promise.all(
-          airCraftTypePromises
+        const airlinePromises = flights.map((f) => getAirlines(f.prefixIATA));
+        const destinationPromises = flights.map((f) =>
+          getDestinations(f.route.destinations[0]),
         );
-        setAirCraftData(resolvedairCraftTypeData);
+        const airCraftPromises = flights.map((f) =>
+          getAircrafttypes(f.aircraftType?.iataMain, f.aircraftType?.iataSub),
+        );
+
+        const [resolvedAirlines, resolvedDestinations, resolvedAircraft] =
+          await Promise.all([
+            Promise.all(airlinePromises),
+            Promise.all(destinationPromises),
+            Promise.all(airCraftPromises),
+          ]);
+
+        setAirlineData(resolvedAirlines);
+        setDestinationData(resolvedDestinations);
+        setAirCraftData(resolvedAircraft);
+
+        dispatch(setLoadingAirline(true));
+        dispatch(setLoadingDestination(true));
+        dispatch(setLoadingAircraft(true));
       } catch (error) {
-        console.error("Error fetching flights:", error);
+        console.error("Error fetching flight metadata:", error);
       }
     };
+
     fetchDatas();
     dispatch(setSearchParam(location.search));
-  }, [flights, rotate]);
+  }, [flights, rotate, dispatch, location.search]);
 
   const navigateFlightDetail = (flightId) => {
     navigate(`/${rotateDetail}/flight/${flightId}`);
   };
-  // console.log("Flights: ", flights);
-  // console.log("Destinations: ", destinationData);
-  // console.log("airCraftData: ", airCraftData);
-  //console.log(flights);
 
-  //prettier-ignore
-  const createFlightElement = (
-    flight,
-    index,
-    navigateFlightDetail,
-    rotateDetail
-  ) => (
-    <li key={flight.id}>
-      <div className="bg-white hover:shadow-2xl shadow-md text-center rounded-sm py-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {/* <h1>{index}</h1> //? DEBUGGING
-        <h1>{flight.id}</h1>  */}
-        <h1 className="col-span-1 sm:col-span-2 md:col-span-1 lg:col-span-1 xl:col-span-1">
-          {flight.scheduleTime}
-        </h1>
-        <div className="col-span-1 sm:col-span-2 md:col-span-1 lg:col-span-1 xl:col-span-1 space-y-2">
-          <h1>
-            {destinationData[index]?.city}
-            <span> ({destinationData[index]?.iata})</span>
-          </h1>
-          <h1 className="text-sm font-thin">
-            {flight.flightName}
-            <span> {airlineData[index]?.publicName}</span>
-          </h1>
-        </div>
-        <h1 className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
-          {airCraftData &&
-          airCraftData[index] &&
-          airCraftData[index].aircraftTypes &&
-          airCraftData[index].aircraftTypes[0]
-            ? airCraftData[index].aircraftTypes[0].shortDescription
-            : "-"}
-        </h1>
-        <h1 className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1">
-          {getFlightStatus(flight)}
-        </h1>
-        <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-1 flex items-center justify-center space-x-2 text-blue-500 hover:text-blue-700">
-          <Link
-            className="cursor-pointer"
-            onClick={() => navigateFlightDetail(flight.id)}
-            to={`/${rotateDetail}/flight/${flight.id}`}
-          >
-            Details
-          </Link>
-          <Link
-            onClick={() => navigateFlightDetail(flight.id)}
-            to={`/${rotateDetail}/flight/${flight.id}`}
-            className="flex items-center cursor-pointer"
-          >
-            <FaArrowRight />
-          </Link>
-        </div>
-      </div>
-    </li>
-  );
-
-  const navigateRotate = (flightRotate) => {
-    navigate(`${flightRotate}`);
-    setLoadingAirline(false);
-    setLoadingDestination(false);
-    setLoadingAircraft(false);
-    window.location.reload();
+  const navigateRotate = (path) => {
+    dispatch(setLoadingAirline(false));
+    dispatch(setLoadingDestination(false));
+    dispatch(setLoadingAircraft(false));
+    navigate(path);
   };
+
   return (
-    <div>
-      {!loadingAircraft && !loadingAirline && !loadingDestination ? (
-        <div className="loading-container">
-          <div className="flex space-x-2 items-center">
-            <ClipLoader
-              color="#3498db"
-              loading={true}
-              css={override}
-              size={50}
-            />
-            <p>Loading</p>
-          </div>
+    <div className="w-full max-w-7xl mx-auto px-4 py-6">
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center min-h-[400px] glass rounded-3xl animate-pulse">
+          <PulseLoader color="#2563eb" size={15} margin={2} />
+          <p className="mt-6 text-slate-500 font-medium tracking-wide">
+            Retrieving flight manifest...
+          </p>
         </div>
       ) : (
-        <div>
-          <div>
-            {rotate === "D" && (
-              <div className="bg-white flex space-x-6 text-center px-2">
-                <Link className="border-b-blue-600 border-b-2">Departures</Link>
-                <Link
-                  className="hover:bg-blue-600 hover:text-white"
-                  onClick={() => navigateRotate("/arrivals")}
-                  to={"/arrivals"}
+        <div className="space-y-6">
+          {/* View Toggle */}
+          <div className="flex p-1.5 bg-slate-200/50 backdrop-blur-sm rounded-2xl w-fit">
+            <button
+              onClick={() => navigateRotate("/departures")}
+              className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl font-bold transition-all duration-300 ${
+                rotate === "D"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <FaPlaneDeparture
+                className={rotate === "D" ? "text-blue-600" : ""}
+              />
+              <span>Departures</span>
+            </button>
+            <button
+              onClick={() => navigateRotate("/arrivals")}
+              className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl font-bold transition-all duration-300 ${
+                rotate === "A"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <FaPlaneArrival
+                className={rotate === "A" ? "text-blue-600" : ""}
+              />
+              <span>Arrivals</span>
+            </button>
+          </div>
+
+          <EarlierFlightsComp rotate={rotate} />
+
+          <div className="grid grid-cols-1 gap-4">
+            {flights && flights.length > 0 ? (
+              flights.map((flight, index) => (
+                <div
+                  key={flight.id}
+                  className="card-premium group hover:ring-2 hover:ring-blue-500/20"
                 >
-                  Arrivals
-                </Link>
-              </div>
-            )}
-            {rotate === "A" && (
-              <div className="bg-white flex space-x-6 text-center px-2">
-                <Link
-                  className="hover:bg-blue-600 hover:text-white"
-                  onClick={() => navigateRotate("/departures")}
-                  to={"/departures"}
-                >
-                  Departures
-                </Link>
-                <Link className="border-b-blue-600 border-b-2">Arrivals</Link>
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    {/* Time & Flight Info */}
+                    <div className="flex items-center space-x-8 w-full md:w-auto">
+                      <div className="text-center">
+                        <p className="text-3xl font-black text-slate-800 tabular-nums">
+                          {flight.scheduleTime.substring(0, 5)}
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                          Scheduled
+                        </p>
+                      </div>
+                      <div className="h-10 w-px bg-slate-200" />
+                      <div>
+                        <p className="text-xl font-bold text-slate-800 flex items-center">
+                          {destinationData[index]?.city || "Loading..."}
+                          <span className="ml-2 text-blue-600">
+                            ({destinationData[index]?.iata || "---"})
+                          </span>
+                        </p>
+                        <p className="text-sm text-slate-400 font-medium">
+                          {airlineData[index]?.publicName || "Airline"} •{" "}
+                          {flight.flightName}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Aircraft & Status */}
+                    <div className="flex items-center space-x-8 w-full md:w-auto justify-between md:justify-end">
+                      <div className="hidden lg:block text-right">
+                        <p className="text-sm font-bold text-slate-600">
+                          {airCraftData[index]?.aircraftTypes?.[0]
+                            ?.shortDescription || "---"}
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                          Aircraft Type
+                        </p>
+                      </div>
+
+                      <div className="min-w-[120px] text-center">
+                        <span
+                          className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
+                            getFlightStatus(flight) === "On Time"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {getFlightStatus(flight)}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => navigateFlightDetail(flight.id)}
+                        className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm"
+                      >
+                        <FaArrowRight />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-20 glass rounded-3xl">
+                <p className="text-slate-400 font-medium">
+                  No flights found for this schedule.
+                </p>
               </div>
             )}
           </div>
-          <ul className="mt-3 space-y-3">
-            <li>
-              <div className="bg-gray-200 shadow-md text-center rounded-sm py-2 grid grid-cols-5">
-                <h1>Schedule Time</h1>
-                <h1>City / Airport</h1>
-                <h1>Aircraft Type</h1>
-                <h1>Status</h1>
-                <h1>Details</h1>
-              </div>
-            </li>
-            <EarlierFlightsComp rotate={rotate}></EarlierFlightsComp>
-            {flights && flights.length > 0 ? (
-              flights.map((flight, index) => (
-                <React.Fragment key={flight.id}>
-                  {createFlightElement(
-                    flight,
-                    index,
-                    navigateFlightDetail,
-                    rotateDetail
-                  )}
-                </React.Fragment>
-              ))
-            ) : (
-              <p className="text-center bg-rose-700 my-10">
-                No flights available
-              </p>
-            )}
 
-            <LaterFlightsComp rotate={rotate}></LaterFlightsComp>
-          </ul>
+          <LaterFlightsComp rotate={rotate} />
         </div>
       )}
     </div>
