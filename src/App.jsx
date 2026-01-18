@@ -17,8 +17,14 @@ function App() {
   const queryDate = useSelector((state) => state.reducer.queryDate);
   const searchParam = useSelector((state) => state.reducer.searchParam);
   const [rotate, setRotate] = useState("");
-  const searchParamValue = searchParam.split("=")[1];
+  const searchParamValue = searchParam?.includes("=")
+    ? searchParam.split("=")[1]
+    : null;
+
   useEffect(() => {
+    const targetDate = searchParamValue || queryDate;
+    if (!targetDate) return;
+
     const date = new Date();
     const formatTimeComponent = (component) => {
       return component < 10 ? "0" + component : component;
@@ -27,10 +33,11 @@ function App() {
     const minutes = formatTimeComponent(date.getMinutes());
     const fromDateTime = `${queryDate}T${hours}:${minutes}:00`;
     const fromDateTimeSpecialDate = `${searchParamValue}T00:00:00`;
+
     const fetchDatas = async () => {
       try {
         const dataFlight = await getFlights(
-          searchParamValue || queryDate,
+          targetDate,
           rotate,
           searchParamValue ? fromDateTimeSpecialDate : fromDateTime,
           null,
@@ -43,7 +50,7 @@ function App() {
       }
     };
     fetchDatas();
-  }, [queryDate, rotate]);
+  }, [queryDate, rotate, searchParamValue, dispatch]);
   return (
     <div>
       <Router>

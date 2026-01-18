@@ -4,8 +4,7 @@ const ApiID = import.meta.env.VITE_API_ID;
 const ApiKey = import.meta.env.VITE_API_KEY;
 
 const schipholApi = axios.create({
-  baseURL: "https://api.schiphol.nl/public-flights",
-  // baseURL: "/api",
+  baseURL: "/api",
   headers: {
     Accept: "application/json",
     resourceversion: "v4",
@@ -20,7 +19,7 @@ export const getFlights = async (
   fromDateTime,
   toDateTime,
   page,
-  sort
+  sort,
 ) => {
   try {
     const response = await schipholApi.get("/flights", {
